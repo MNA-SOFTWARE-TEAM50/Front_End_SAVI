@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
+import Breadcrumb from '../components/Breadcrumb';
 
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
@@ -11,6 +12,9 @@ const Dashboard: React.FC = () => {
 
       {/* Contenido del Dashboard */}
       <div className="max-w-7xl mx-auto p-8">
+        {/* Breadcrumb */}
+        <Breadcrumb />
+
         {/* Título y Bienvenida */}
         <div className="mb-8">
           <h2 className="text-4xl font-bold text-gray-900 mb-2">Dashboard</h2>

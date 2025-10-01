@@ -1,5 +1,6 @@
 import React from 'react';
 import Header from '../components/Header';
+import Breadcrumb from '../components/Breadcrumb';
 
 const Sales: React.FC = () => {
   return (
@@ -7,6 +8,9 @@ const Sales: React.FC = () => {
       <Header />
       
       <div className="max-w-7xl mx-auto p-8">
+        {/* Breadcrumb */}
+        <Breadcrumb />
+        
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Punto de Venta</h1>
           <button className="btn-primary">

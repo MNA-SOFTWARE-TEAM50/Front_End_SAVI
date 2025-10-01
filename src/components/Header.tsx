@@ -20,13 +20,35 @@ const Header: React.FC = () => {
     return roles[role] || role;
   };
 
+  const handleGoBack = () => {
+    navigate(-1);
+  };
+
+  const goToDashboard = () => {
+    navigate('/dashboard');
+  };
+
   return (
     <div className="bg-white shadow-sm border-b border-gray-200">
       <div className="max-w-7xl mx-auto px-8 py-4">
         <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">SAVI</h1>
-            <p className="text-sm text-gray-500">Sistema de Administración de Ventas e Inventario</p>
+          <div className="flex items-center gap-4">
+            {/* Botón Atrás */}
+            <button
+              onClick={handleGoBack}
+              className="flex items-center justify-center w-10 h-10 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors group"
+              title="Atrás"
+            >
+              <svg className="w-5 h-5 text-gray-600 group-hover:text-gray-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+            
+            {/* Logo - clickeable para ir al Dashboard */}
+            <button onClick={goToDashboard} className="text-left hover:opacity-80 transition-opacity">
+              <h1 className="text-2xl font-bold text-gray-900">SAVI</h1>
+              <p className="text-sm text-gray-500">Sistema de Administración de Ventas e Inventario</p>
+            </button>
           </div>
           <div className="flex items-center gap-4">
             {/* Información del usuario */}
