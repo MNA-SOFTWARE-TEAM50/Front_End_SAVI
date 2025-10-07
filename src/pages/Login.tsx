@@ -36,8 +36,8 @@ export function Login() {
       const formData = new URLSearchParams();
       formData.append('username', username);
       formData.append('password', password);
-
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/v1/auth/login`, {
+      const apiBase = (import.meta.env as any).VITE_API_URL || 'http://localhost:8000/api';
+      const response = await fetch(`${apiBase}/v1/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
@@ -49,7 +49,7 @@ export function Login() {
 
       if (!response.ok) {
         // Mostrar mensaje de error del backend
-        setError(data.message || 'Usuario o contraseña incorrectos, favor de verificar');
+        setError((data as any)?.detail || data.message || 'Usuario o contraseña incorrectos, favor de verificar');
         setLoading(false);
         return;
       }
