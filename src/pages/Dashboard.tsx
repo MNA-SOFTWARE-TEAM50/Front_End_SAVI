@@ -136,7 +136,7 @@ const Dashboard: React.FC = () => {
 
             {/* Módulo de Configuración */}
             <button
-              onClick={() => navigate('/config/users')}
+              onClick={() => navigate('/config')}
               className="group bg-gradient-to-br from-gray-600 to-gray-800 rounded-2xl p-8 shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105 text-left"
             >
               <div className="flex items-center justify-between mb-6">
