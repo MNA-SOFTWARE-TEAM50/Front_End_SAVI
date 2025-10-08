@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import Input from '../components/Input';
+import LogoCompleto from '../assets/Logos/SAVI_LogoCompleto.png';
 
 interface LoginResponse {
   access_token: string;
@@ -77,22 +78,12 @@ export function Login() {
       <div className="bg-white rounded-2xl shadow-2xl p-10 w-full max-w-md">
         {/* Logo y Título */}
         <div className="text-center mb-8">
-          <div className="w-24 h-24 bg-gradient-to-br from-blue-600 to-blue-800 rounded-full mx-auto mb-6 flex items-center justify-center shadow-lg">
-            <svg
-              className="w-12 h-12 text-white"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
-              />
-            </svg>
-          </div>
-          <h1 className="text-4xl font-bold text-gray-900 mb-3">SAVI</h1>
+          <img
+            src={LogoCompleto}
+            alt="SAVI - Sistema de Administración de Ventas e Inventario"
+            className="w-48 md:w-56 lg:w-64 mx-auto mb-4 select-none"
+            draggable={false}
+          />
           <p className="text-gray-600 text-sm">Sistema de Administración de Ventas e Inventario</p>
         </div>
 

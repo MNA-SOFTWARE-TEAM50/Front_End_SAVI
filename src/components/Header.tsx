@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import LogoMediano from '../assets/Logos/SAVI_LogoMediano.png';
 
 const Header: React.FC = () => {
   const navigate = useNavigate();
@@ -45,9 +46,17 @@ const Header: React.FC = () => {
             </button>
             
             {/* Logo - clickeable para ir al Dashboard */}
-            <button onClick={goToDashboard} className="text-left hover:opacity-80 transition-opacity">
-              <h1 className="text-2xl font-bold text-gray-900">SAVI</h1>
-              <p className="text-sm text-gray-500">Sistema de Administración de Ventas e Inventario</p>
+            <button onClick={goToDashboard} className="group flex items-center gap-3 hover:opacity-80 transition-opacity">
+              <img
+                src={LogoMediano}
+                alt="SAVI"
+                className="h-12 md:h-14 lg:h-16 w-auto select-none shrink-0"
+                draggable={false}
+              />
+              <div className="text-left">
+                <h1 className="text-2xl md:text-3xl font-bold text-gray-900 leading-tight">SAVI</h1>
+                <p className="text-xs md:text-sm text-gray-500 leading-tight">Sistema de Administración de Ventas e Inventario</p>
+              </div>
             </button>
           </div>
           <div className="flex items-center gap-4">
