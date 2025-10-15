@@ -1,6 +1,6 @@
 import './App.css';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { Login, Dashboard, Sales, Inventory, Users, Config } from './pages';
+import { Login, Dashboard, Sales, Inventory, Users, Config, SalesReport } from './pages';
 import { AuthProvider, useAuth } from './context/AuthContext';
 
 // Componente para proteger rutas privadas
@@ -77,6 +77,15 @@ function AppRoutes() {
           element={
             <PrivateRoute>
               <Config />
+            </PrivateRoute>
+          } 
+        />
+        
+        <Route 
+          path="/reports/sales" 
+          element={
+            <PrivateRoute>
+              <SalesReport />
             </PrivateRoute>
           } 
         />

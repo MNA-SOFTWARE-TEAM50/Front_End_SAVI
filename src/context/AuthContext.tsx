@@ -1,4 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { setUnauthorizedHandler } from '../services/api';
+import { useNavigate } from 'react-router-dom';
 
 interface User {
   id: string;
@@ -21,6 +23,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     // Cargar datos del usuario desde localStorage al iniciar
@@ -45,7 +48,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(null);
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    // Redirigir al login
+    navigate('/login');
   };
+
+  useEffect(() => {
+    // Registrar handler global para 401 no autorizado
+    setUnauthorizedHandler(() => {
+      logout();
+    });
+    // No cleanup necesario; el handler puede re-registrarse si el provider se remonta
+  }, [])
 
   return (
     <AuthContext.Provider value={{ 

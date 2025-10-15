@@ -4,6 +4,8 @@ import Breadcrumb from '../components/Breadcrumb';
 import Input from '../components/Input';
 import Button from '../components/Button';
 import { useAuth } from '../context/AuthContext';
+import Swal from 'sweetalert2';
+import 'sweetalert2/dist/sweetalert2.min.css';
 
 type User = {
   id: string;
@@ -170,7 +172,15 @@ const Users: React.FC = () => {
   };
 
   const remove = async (u: User) => {
-    if (!confirm(`¿Eliminar usuario ${u.username}?`)) return;
+    const res = await Swal.fire({
+      icon: 'warning',
+      title: 'Eliminar usuario',
+      text: `¿Eliminar usuario ${u.username}?`,
+      showCancelButton: true,
+      confirmButtonText: 'Sí, eliminar',
+      cancelButtonText: 'Cancelar',
+    });
+    if (!res.isConfirmed) return;
     setError('');
     try {
       const res = await fetch(`${baseUrl}/${u.id}`, {

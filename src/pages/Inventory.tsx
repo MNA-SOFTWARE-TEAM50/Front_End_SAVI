@@ -97,7 +97,15 @@ const Inventory: React.FC = () => {
   };
 
   const onDelete = async (p: Product) => {
-    if (!confirm(`¿Eliminar producto "${p.name}"?`)) return;
+    const res = await Swal.fire({
+      icon: 'warning',
+      title: 'Eliminar producto',
+      text: `¿Eliminar producto "${p.name}"?`,
+      showCancelButton: true,
+      confirmButtonText: 'Sí, eliminar',
+      cancelButtonText: 'Cancelar',
+    });
+    if (!res.isConfirmed) return;
     try {
       await apiClient.delete(`/v1/products/${p.id}`, token || undefined);
       await fetchProducts();

@@ -1,6 +1,11 @@
 // Configuración de la API
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 
+let onUnauthorized: (() => void) | null = null;
+export const setUnauthorizedHandler = (handler: () => void) => {
+  onUnauthorized = handler;
+};
+
 export const apiClient = {
   get: async <T>(endpoint: string, token?: string): Promise<T> => {
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
@@ -11,6 +16,10 @@ export const apiClient = {
       },
     });
 
+    if (response.status === 401) {
+      if (onUnauthorized) onUnauthorized();
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
@@ -28,6 +37,10 @@ export const apiClient = {
       body: JSON.stringify(data),
     });
 
+    if (response.status === 401) {
+      if (onUnauthorized) onUnauthorized();
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
@@ -45,6 +58,10 @@ export const apiClient = {
       body: JSON.stringify(data),
     });
 
+    if (response.status === 401) {
+      if (onUnauthorized) onUnauthorized();
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
@@ -61,6 +78,10 @@ export const apiClient = {
       },
     });
 
+    if (response.status === 401) {
+      if (onUnauthorized) onUnauthorized();
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
