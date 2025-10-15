@@ -1,5 +1,5 @@
 import React from 'react';
-import { MdPointOfSale, MdInventory2, MdBarChart, MdSettings, MdAttachMoney, MdList, MdPeople, MdReceiptLong, MdTrendingUp } from 'react-icons/md';
+import { MdPointOfSale, MdInventory2, MdBarChart, MdSettings, MdAttachMoney, MdList, MdPeople, MdReceiptLong, MdTrendingUp, MdAssignmentReturn } from 'react-icons/md';
 import { useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
 import Breadcrumb from '../components/Breadcrumb';
@@ -122,6 +122,23 @@ const Dashboard: React.FC = () => {
               <p className="text-blue-100">Gestiona las ventas y transacciones del día</p>
             </button>
 
+            {/* Módulo de Devoluciones */}
+            <button
+              onClick={() => navigate('/returns')}
+              className="group bg-gradient-to-br from-amber-600 to-amber-800 rounded-2xl p-8 shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105 text-left"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <div className="w-16 h-16 bg-white bg-opacity-20 rounded-xl flex items-center justify-center group-hover:bg-opacity-30 transition-all">
+                  <MdAssignmentReturn className="w-8 h-8 text-white" />
+                </div>
+                <svg className="w-6 h-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                </svg>
+              </div>
+              <h4 className="text-2xl font-bold text-white mb-2">Devoluciones</h4>
+              <p className="text-amber-100">Procesa devoluciones y notas de crédito</p>
+            </button>
+
             {/* Módulo de Inventario */}
             <button
               onClick={() => navigate('/inventory')}
@@ -196,7 +213,7 @@ const Dashboard: React.FC = () => {
                       <div className="text-sm text-gray-900 font-medium">Venta #{s.id}</div>
                       <div className="text-xs text-gray-500">{new Date(s.created_at).toLocaleString('es-MX')} • {s.payment_method}</div>
                     </div>
-                    <div className="text-sm font-semibold text-gray-900">{s.total.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</div>
+                    <div className="text-sm font-semibold text-gray-900">{((s.net_total ?? s.total) as number).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</div>
                   </li>
                 ))}
               </ul>
