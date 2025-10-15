@@ -3,6 +3,8 @@ import Header from '../components/Header';
 import Breadcrumb from '../components/Breadcrumb';
 import { useAuth } from '../context/AuthContext';
 import apiClient from '../services/api';
+import Swal from 'sweetalert2';
+import 'sweetalert2/dist/sweetalert2.min.css';
 
 type Product = {
   id: number;
@@ -76,7 +78,7 @@ const Sales: React.FC = () => {
     const existing = cart.find(c => c.product.id === product.id);
     if (existing) {
       if (existing.quantity >= product.stock) {
-        alert(`Stock máximo alcanzado: ${product.stock}`);
+        Swal.fire({ icon: 'warning', title: 'Stock máximo alcanzado', text: `Stock máximo alcanzado: ${product.stock}` });
         return;
       }
       setCart(cart.map(c => 
@@ -95,7 +97,7 @@ const Sales: React.FC = () => {
     const item = cart.find(c => c.product.id === productId);
     if (!item) return;
     if (quantity > item.product.stock) {
-      alert(`Stock máximo: ${item.product.stock}`);
+      Swal.fire({ icon: 'warning', title: 'Stock máximo', text: `Stock máximo: ${item.product.stock}` });
       return;
     }
     if (quantity <= 0) {
@@ -149,11 +151,11 @@ const Sales: React.FC = () => {
         token || undefined
       );
 
-      alert('¡Venta registrada exitosamente!');
+      Swal.fire({ icon: 'success', title: 'Venta registrada', text: '¡Venta registrada exitosamente!' });
       clearCart();
     } catch (e: any) {
       const msg = e?.message || 'No se pudo procesar la venta';
-      alert(msg);
+      Swal.fire({ icon: 'error', title: 'Error', text: msg });
     } finally {
       setProcessing(false);
     }

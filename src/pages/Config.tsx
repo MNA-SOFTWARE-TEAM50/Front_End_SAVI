@@ -2,6 +2,8 @@ import React from 'react';
 import Header from '../components/Header';
 import Breadcrumb from '../components/Breadcrumb';
 import { useNavigate } from 'react-router-dom';
+import Swal from 'sweetalert2';
+import 'sweetalert2/dist/sweetalert2.min.css';
 
 const Config: React.FC = () => {
   const navigate = useNavigate();
@@ -30,7 +32,7 @@ const Config: React.FC = () => {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
         </svg>
       ),
-      onClick: () => alert('Próximamente'),
+  onClick: () => Swal.fire({ icon: 'info', title: 'Próximamente', text: 'Esta funcionalidad estará disponible pronto.' }),
     },
   ];
 

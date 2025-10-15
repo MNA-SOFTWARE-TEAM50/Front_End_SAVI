@@ -3,6 +3,8 @@ import Header from '../components/Header';
 import Breadcrumb from '../components/Breadcrumb';
 import { useAuth } from '../context/AuthContext';
 import apiClient from '../services/api';
+import Swal from 'sweetalert2';
+import 'sweetalert2/dist/sweetalert2.min.css';
 
 type Product = {
   id: number;
@@ -77,6 +79,13 @@ const Inventory: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    const handler = () => fetchProducts();
+    window.addEventListener('savi:import:done', handler);
+    return () => window.removeEventListener('savi:import:done', handler);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const onAdd = () => {
     setEditing(null);
     setShowModal(true);
@@ -93,7 +102,7 @@ const Inventory: React.FC = () => {
       await apiClient.delete(`/v1/products/${p.id}`, token || undefined);
       await fetchProducts();
     } catch (e: any) {
-      alert('No se pudo eliminar el producto');
+      await Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo eliminar el producto' });
     }
   };
 
@@ -127,6 +136,40 @@ const Inventory: React.FC = () => {
               ))}
             </select>
             <div />
+          </div>
+
+          <div className="mt-4 mb-6 flex items-center gap-3">
+            <input id="import-file" type="file" accept=".csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" className="hidden" onChange={async (e) => {
+              const f = e.target.files?.[0];
+              if (!f) return;
+              // store selected file on window for the modal to access
+              (window as any).__savi_import_file = f;
+              // auto-run verify and show preview modal
+              try {
+                const fd = new FormData();
+                fd.append('file', f);
+                const res = await fetch(`${(import.meta.env as any).VITE_API_URL || 'http://localhost:8000/api'}/v1/imports/products/verify`, {
+                  method: 'POST',
+                  body: fd,
+                  headers: {
+                    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                  } as any
+                });
+                if (!res.ok) {
+                  const t = await res.text();
+                  throw new Error(t || 'Error al verificar archivo');
+                }
+                const json = await res.json();
+                (window as any).__savi_import_preview = json;
+                // show modal with preview
+                const ev = new CustomEvent('savi:import:preview');
+                window.dispatchEvent(ev);
+              } catch (err: any) {
+                await Swal.fire({ icon: 'error', title: 'Error al verificar', text: err?.message || 'Error al verificar archivo' });
+              }
+            }} />
+            <label htmlFor="import-file" className="btn-secondary cursor-pointer">Seleccionar archivo CSV/XLSX</label>
+            <div className="text-sm text-gray-500">Máx. 20MB; columnas: SKU, name, cantidad, precio, categoria</div>
           </div>
 
           {loading ? (
@@ -194,6 +237,7 @@ const Inventory: React.FC = () => {
           editing={editing}
         />
       )}
+      <ImportPreviewModal />
     </div>
   );
 };
@@ -309,3 +353,95 @@ const ProductModal: React.FC<{ onClose: () => void; onSaved: () => void; editing
     </div>
   )
 }
+
+// Import preview modal
+const ImportPreviewModal: React.FC = () => {
+  const [preview, setPreview] = React.useState<any>(null);
+
+  useEffect(() => {
+    const handler = () => {
+      setPreview((window as any).__savi_import_preview || null);
+    };
+    window.addEventListener('savi:import:preview', handler);
+    return () => window.removeEventListener('savi:import:preview', handler);
+  }, []);
+
+  if (!preview) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-start justify-center p-6 z-50">
+      <div className="bg-white rounded-lg shadow-lg w-full max-w-4xl max-h-[80vh] overflow-auto">
+        <div className="px-6 py-4 border-b flex items-center justify-between">
+          <h3 className="font-semibold">Preview de importación - {preview.filename}</h3>
+          <div className="flex items-center gap-3">
+            <button onClick={() => { (window as any).__savi_import_preview = undefined; setPreview(null); }} className="btn-secondary">Anular importación</button>
+            <button onClick={async () => {
+              const f = (window as any).__savi_import_file as File | undefined;
+              if (!f) {
+                await Swal.fire({ icon: 'warning', title: 'Archivo no encontrado', text: 'No se encontró el archivo seleccionado' });
+                return;
+              }
+              try {
+                const fd = new FormData();
+                fd.append('file', f);
+                const res = await fetch(`${(import.meta.env as any).VITE_API_URL || 'http://localhost:8000/api'}/v1/imports/products`, {
+                  method: 'POST',
+                  body: fd,
+                  headers: {
+                    ...(localStorage.getItem('token') ? { Authorization: `Bearer ${localStorage.getItem('token')}` } : {}),
+                  } as any
+                });
+                if (!res.ok) {
+                  const t = await res.text();
+                  throw new Error(t || 'Error al importar archivo');
+                }
+                const json = await res.json();
+                await Swal.fire({
+                  icon: 'success',
+                  title: 'Importación completada',
+                  html: `Insertados: <strong>${json.inserted}</strong><br/>Actualizados: <strong>${json.updated}</strong><br/>Fallidos: <strong>${json.failed}</strong>`
+                });
+                // close modal and clear temp
+                (window as any).__savi_import_preview = undefined;
+                (window as any).__savi_import_file = undefined;
+                setPreview(null);
+                // dispatch event to notify parent to refresh products
+                window.dispatchEvent(new CustomEvent('savi:import:done'));
+              } catch (err: any) {
+                await Swal.fire({ icon: 'error', title: 'Error', text: err?.message || 'Error al importar archivo' });
+              }
+            }} className="btn-primary">Subir inventario</button>
+          </div>
+        </div>
+        <div className="p-4">
+          <div className="mb-4 text-sm text-gray-600">Filas detectadas: {preview.total_rows ?? 0} · Preview mostrada: {preview.preview_count ?? 0} · Errores críticos: {preview.critical_errors ?? 0}</div>
+          <table className="min-w-full divide-y divide-gray-200 text-sm">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="p-2 text-left">#</th>
+                <th className="p-2 text-left">SKU</th>
+                <th className="p-2 text-left">Nombre</th>
+                <th className="p-2 text-left">Cantidad</th>
+                <th className="p-2 text-left">Precio</th>
+                <th className="p-2 text-left">Errores</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(preview.preview || []).map((r: any) => (
+                <tr key={r.row} className="odd:bg-white even:bg-gray-50">
+                  <td className="p-2">{r.row}</td>
+                  <td className="p-2">{r.data.sku ?? '-'}</td>
+                  <td className="p-2">{r.data.name ?? '-'}</td>
+                  <td className="p-2">{r.data.quantity ?? '-'}</td>
+                  <td className="p-2">{r.data.price ?? '-'}</td>
+                  <td className="p-2 text-red-600">{(r.errors || []).join(', ')}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+};
+
