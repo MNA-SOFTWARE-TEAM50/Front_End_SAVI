@@ -8,3 +8,4 @@ export { default as Config } from './Config';
 export { default as SalesReport } from './SalesReport';
 export { default as Returns } from './Returns';
 export { default as InventoryAlerts } from './InventoryAlerts';
+export { default as SystemTests } from './SystemTests';
