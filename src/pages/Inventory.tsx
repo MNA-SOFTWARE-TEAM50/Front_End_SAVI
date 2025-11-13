@@ -22,6 +22,32 @@ type Product = {
 
 type ProductList = { items: Product[]; total: number };
 
+type Alert = {
+  id: number;
+  product_id: number;
+  product_name: string;
+  alert_type: string;
+  severity: string;
+  message: string;
+  current_stock: number | null;
+  is_active: boolean;
+  is_read: boolean;
+  created_at: string;
+};
+
+type AlertStats = {
+  total_alerts: number;
+  active_alerts: number;
+  unread_alerts: number;
+  critical_alerts: number;
+  by_severity: {
+    critical?: number;
+    high?: number;
+    medium?: number;
+    low?: number;
+  };
+};
+
 const Inventory: React.FC = () => {
   const { token } = useAuth();
   const [items, setItems] = useState<Product[]>([]);
@@ -31,6 +57,12 @@ const Inventory: React.FC = () => {
   const [category, setCategory] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<Product | null>(null);
+  
+  // Estados para alertas
+  const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [alertStats, setAlertStats] = useState<AlertStats | null>(null);
+  const [showAlertsPanel, setShowAlertsPanel] = useState(false);
+  const [generatingAlerts, setGeneratingAlerts] = useState(false);
 
   const filtered = useMemo(() => {
     let data = items;
@@ -74,13 +106,75 @@ const Inventory: React.FC = () => {
     }
   };
 
+  // Función para obtener alertas
+  const fetchAlerts = async () => {
+    try {
+      const res = await apiClient.get<Alert[]>('/v1/inventory-alerts/?active_only=true&limit=50', token || undefined);
+      setAlerts(res);
+    } catch (e) {
+      console.error('Error al cargar alertas:', e);
+    }
+  };
+
+  // Función para obtener estadísticas de alertas
+  const fetchAlertStats = async () => {
+    try {
+      const res = await apiClient.get<AlertStats>('/v1/inventory-alerts/stats', token || undefined);
+      setAlertStats(res);
+    } catch (e) {
+      console.error('Error al cargar estadísticas de alertas:', e);
+    }
+  };
+
+  // Función para generar alertas
+  const generateAlerts = async () => {
+    setGeneratingAlerts(true);
+    try {
+      const res = await apiClient.post<{ message: string; alerts: string[] }>(
+        '/v1/inventory-alerts/generate',
+        {
+          low_stock_threshold: 10,
+          critical_stock_threshold: 5,
+          no_movement_days: 30,
+        },
+        token || undefined
+      );
+      await Swal.fire({
+        icon: 'success',
+        title: 'Alertas Generadas',
+        html: `${res.message}<br/><small>Se detectaron problemas en el inventario</small>`,
+      });
+      await fetchAlerts();
+      await fetchAlertStats();
+    } catch (e: any) {
+      await Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'No se pudieron generar las alertas',
+      });
+    } finally {
+      setGeneratingAlerts(false);
+    }
+  };
+
+  // Función para obtener alerta de un producto
+  const getProductAlert = (productId: number): Alert | undefined => {
+    return alerts.find(a => a.product_id === productId);
+  };
+
   useEffect(() => {
     fetchProducts();
+    fetchAlerts();
+    fetchAlertStats();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
-    const handler = () => fetchProducts();
+    const handler = () => {
+      fetchProducts();
+      fetchAlerts();
+      fetchAlertStats();
+    };
     window.addEventListener('savi:import:done', handler);
     return () => window.removeEventListener('savi:import:done', handler);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -123,10 +217,106 @@ const Inventory: React.FC = () => {
         
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Inventario</h1>
-          <button className="btn-primary" onClick={onAdd}>
-            Agregar Producto
-          </button>
+          <div className="flex items-center gap-3">
+            <button 
+              className="btn-secondary flex items-center gap-2" 
+              onClick={generateAlerts}
+              disabled={generatingAlerts}
+            >
+              {generatingAlerts ? '⏳ Generando...' : '🔔 Generar Alertas'}
+            </button>
+            <button className="btn-primary" onClick={onAdd}>
+              Agregar Producto
+            </button>
+          </div>
         </div>
+
+        {/* Panel de Alertas */}
+        {alertStats && (alertStats.active_alerts > 0 || alertStats.critical_alerts > 0) && (
+          <div className="mb-6 bg-gradient-to-r from-red-50 to-orange-50 border border-red-200 rounded-lg p-4 shadow-sm">
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-2xl">⚠️</span>
+                  <h3 className="text-lg font-semibold text-gray-900">Alertas de Inventario</h3>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-3">
+                  <div className="bg-white rounded-lg p-3 shadow-sm">
+                    <div className="text-2xl font-bold text-blue-600">{alertStats.active_alerts}</div>
+                    <div className="text-xs text-gray-600">Alertas Activas</div>
+                  </div>
+                  <div className="bg-white rounded-lg p-3 shadow-sm">
+                    <div className="text-2xl font-bold text-red-600">{alertStats.critical_alerts}</div>
+                    <div className="text-xs text-gray-600">Críticas</div>
+                  </div>
+                  <div className="bg-white rounded-lg p-3 shadow-sm">
+                    <div className="text-2xl font-bold text-yellow-600">{alertStats.by_severity?.medium || 0}</div>
+                    <div className="text-xs text-gray-600">Advertencias</div>
+                  </div>
+                  <div className="bg-white rounded-lg p-3 shadow-sm">
+                    <div className="text-2xl font-bold text-orange-600">{alertStats.by_severity?.high || 0}</div>
+                    <div className="text-xs text-gray-600">Alta Prioridad</div>
+                  </div>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowAlertsPanel(!showAlertsPanel)}
+                className="ml-4 text-sm text-blue-600 hover:text-blue-800 font-medium"
+              >
+                {showAlertsPanel ? 'Ocultar' : 'Ver Detalles'} →
+              </button>
+            </div>
+
+            {/* Panel expandible de alertas */}
+            {showAlertsPanel && (
+              <div className="mt-4 border-t pt-4">
+                <div className="space-y-2 max-h-96 overflow-y-auto">
+                  {alerts.slice(0, 10).map(alert => {
+                    const severityColors = {
+                      critical: 'bg-red-100 border-red-300 text-red-800',
+                      high: 'bg-orange-100 border-orange-300 text-orange-800',
+                      medium: 'bg-yellow-100 border-yellow-300 text-yellow-800',
+                      low: 'bg-green-100 border-green-300 text-green-800',
+                    };
+                    const severityIcons = {
+                      critical: '🔴',
+                      high: '🟠',
+                      medium: '🟡',
+                      low: '🟢',
+                    };
+                    return (
+                      <div
+                        key={alert.id}
+                        className={`p-3 rounded-lg border ${severityColors[alert.severity as keyof typeof severityColors] || 'bg-gray-100'}`}
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="text-lg">{severityIcons[alert.severity as keyof typeof severityIcons]}</span>
+                              <span className="font-semibold">{alert.product_name}</span>
+                              {!alert.is_read && (
+                                <span className="text-xs bg-blue-500 text-white px-2 py-0.5 rounded">Nueva</span>
+                              )}
+                            </div>
+                            <p className="text-sm mt-1">{alert.message}</p>
+                            {alert.current_stock !== null && (
+                              <p className="text-xs mt-1 opacity-75">Stock actual: {alert.current_stock} unidades</p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {alerts.length > 10 && (
+                    <div className="text-center text-sm text-gray-600 py-2">
+                      Y {alerts.length - 10} alertas más...
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="bg-white rounded-lg shadow-sm p-6">
           <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -204,32 +394,73 @@ const Inventory: React.FC = () => {
                       <td colSpan={6} className="px-6 py-12 text-center text-gray-500">No hay productos en el inventario</td>
                     </tr>
                   ) : (
-                    filtered.map(p => (
-                      <tr key={p.id}>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <img
-                            src={imageSrc(p)}
-                            alt={p.name}
-                            className="h-12 w-12 object-cover rounded border border-gray-200 bg-gray-50"
-                            onError={(e) => { (e.target as HTMLImageElement).src = '/product-placeholder.svg'; }}
-                          />
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{p.sku || '-'}</td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-medium text-gray-900">{p.name}</div>
-                          <div className="text-xs text-gray-500">{p.barcode || ''}</div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{p.category}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{p.price.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{p.stock}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm">
-                          <div className="flex items-center gap-2">
-                            <button className="btn-secondary" onClick={() => onEdit(p)}>Editar</button>
-                            <button className="btn-danger" onClick={() => onDelete(p)}>Eliminar</button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
+                    filtered.map(p => {
+                      const alert = getProductAlert(p.id);
+                      const hasAlert = !!alert;
+                      const alertColors = {
+                        critical: 'bg-red-50 border-l-4 border-red-500',
+                        high: 'bg-orange-50 border-l-4 border-orange-500',
+                        medium: 'bg-yellow-50 border-l-4 border-yellow-500',
+                        low: 'bg-green-50 border-l-4 border-green-500',
+                      };
+                      
+                      return (
+                        <tr key={p.id} className={hasAlert ? alertColors[alert.severity as keyof typeof alertColors] : ''}>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="relative">
+                              <img
+                                src={imageSrc(p)}
+                                alt={p.name}
+                                className="h-12 w-12 object-cover rounded border border-gray-200 bg-gray-50"
+                                onError={(e) => { (e.target as HTMLImageElement).src = '/product-placeholder.svg'; }}
+                              />
+                              {hasAlert && (
+                                <div className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                                  !
+                                </div>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{p.sku || '-'}</td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm font-medium text-gray-900 flex items-center gap-2">
+                              {p.name}
+                              {hasAlert && (
+                                <span className="text-xs px-2 py-0.5 rounded bg-red-100 text-red-700">
+                                  {alert.severity === 'critical' ? '🔴' : alert.severity === 'high' ? '🟠' : '🟡'}
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-xs text-gray-500">{p.barcode || ''}</div>
+                            {hasAlert && (
+                              <div className="text-xs text-red-600 mt-1">
+                                ⚠️ {alert.alert_type === 'no_stock' ? 'Sin stock' : alert.alert_type === 'low_stock' ? 'Stock bajo' : 'Sin movimiento'}
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{p.category}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{p.price.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className={`text-sm font-semibold ${
+                              p.stock === 0 ? 'text-red-600' :
+                              p.stock <= 5 ? 'text-orange-600' :
+                              p.stock <= 10 ? 'text-yellow-600' :
+                              'text-gray-500'
+                            }`}>
+                              {p.stock}
+                              {p.stock === 0 && ' 🚫'}
+                              {p.stock > 0 && p.stock <= 5 && ' ⚠️'}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm">
+                            <div className="flex items-center gap-2">
+                              <button className="btn-secondary" onClick={() => onEdit(p)}>Editar</button>
+                              <button className="btn-danger" onClick={() => onDelete(p)}>Eliminar</button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
                   )}
                 </tbody>
               </table>
