@@ -18,6 +18,13 @@ type Product = {
   image_url?: string;
   created_at: string;
   updated_at?: string;
+  
+  // Campos de promoción
+  discount_percentage?: number;
+  has_promotion?: boolean;
+  promotion_start?: string;
+  promotion_end?: string;
+  promotion_description?: string;
 };
 
 type ProductList = { items: Product[]; total: number };
@@ -439,7 +446,19 @@ const Inventory: React.FC = () => {
                             )}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{p.category}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{p.price.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm">
+                              {p.has_promotion && p.discount_percentage && p.discount_percentage > 0 ? (
+                                <div className="flex flex-col">
+                                  <span className="text-gray-400 line-through text-xs">{p.price.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</span>
+                                  <span className="text-purple-600 font-bold">{(p.price * (1 - p.discount_percentage / 100)).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</span>
+                                  <span className="text-xs text-purple-600 font-semibold">🏷️ -{p.discount_percentage}%</span>
+                                </div>
+                              ) : (
+                                <span className="text-gray-900">{p.price.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</span>
+                              )}
+                            </div>
+                          </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className={`text-sm font-semibold ${
                               p.stock === 0 ? 'text-red-600' :
@@ -454,6 +473,34 @@ const Inventory: React.FC = () => {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm">
                             <div className="flex items-center gap-2">
+                              {p.has_promotion && (
+                                <button 
+                                  className="px-2 py-1 text-xs bg-purple-100 text-purple-700 rounded hover:bg-purple-200 transition-colors"
+                                  onClick={async () => {
+                                    const result = await Swal.fire({
+                                      title: 'Desactivar Promoción',
+                                      text: `¿Desactivar la promoción de "${p.name}"?`,
+                                      icon: 'question',
+                                      showCancelButton: true,
+                                      confirmButtonText: 'Sí, desactivar',
+                                      cancelButtonText: 'Cancelar',
+                                      confirmButtonColor: '#9333ea',
+                                    });
+                                    if (result.isConfirmed) {
+                                      try {
+                                        await apiClient.put(`/v1/products/${p.id}`, { has_promotion: false }, token || undefined);
+                                        await fetchProducts();
+                                        Swal.fire('¡Listo!', 'Promoción desactivada', 'success');
+                                      } catch (e) {
+                                        Swal.fire('Error', 'No se pudo desactivar la promoción', 'error');
+                                      }
+                                    }
+                                  }}
+                                  title="Desactivar promoción"
+                                >
+                                  🏷️ OFF
+                                </button>
+                              )}
                               <button className="btn-secondary" onClick={() => onEdit(p)}>Editar</button>
                               <button className="btn-danger" onClick={() => onDelete(p)}>Eliminar</button>
                             </div>
@@ -495,6 +542,11 @@ const ProductModal: React.FC<{ onClose: () => void; onSaved: () => void; editing
     barcode: editing?.barcode || '',
     description: editing?.description || '',
     image_url: editing?.image_url || '',
+    discount_percentage: editing?.discount_percentage ?? 0,
+    has_promotion: editing?.has_promotion ?? false,
+    promotion_start: editing?.promotion_start || '',
+    promotion_end: editing?.promotion_end || '',
+    promotion_description: editing?.promotion_description || '',
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -536,14 +588,14 @@ const ProductModal: React.FC<{ onClose: () => void; onSaved: () => void; editing
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-lg">
-        <div className="px-6 py-4 border-b flex items-center justify-between">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-4xl my-8">
+        <div className="px-6 py-4 border-b flex items-center justify-between sticky top-0 bg-white z-10 rounded-t-xl">
           <h2 className="text-lg font-semibold">{editing ? 'Editar Producto' : 'Nuevo Producto'}</h2>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-800">✕</button>
+          <button type="button" onClick={onClose} className="text-gray-500 hover:text-gray-800">✕</button>
         </div>
-        <form onSubmit={onSubmit} className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="md:col-span-2">
+        <form id="product-form" onSubmit={onSubmit} className="p-6 grid grid-cols-1 md:grid-cols-3 gap-4 max-h-[calc(90vh-120px)] overflow-y-auto">
+          <div className="md:col-span-3">
             <label className="label">Nombre</label>
             <input className="input-field" value={form.name || ''} onChange={e => update('name', e.target.value)} required />
           </div>
@@ -563,31 +615,112 @@ const ProductModal: React.FC<{ onClose: () => void; onSaved: () => void; editing
             <label className="label">SKU</label>
             <input className="input-field" value={form.sku || ''} onChange={e => update('sku', e.target.value)} placeholder="Opcional, único" />
           </div>
-          <div>
+          <div className="md:col-span-2">
             <label className="label">Código de barras</label>
             <input className="input-field" value={form.barcode || ''} onChange={e => update('barcode', e.target.value)} placeholder="Opcional, único" />
           </div>
-          <div className="md:col-span-2">
+          <div className="md:col-span-3">
             <label className="label">Descripción</label>
-            <textarea className="input-field" value={form.description || ''} onChange={e => update('description', e.target.value)} rows={3} />
+            <textarea className="input-field" value={form.description || ''} onChange={e => update('description', e.target.value)} rows={2} />
           </div>
           <div className="md:col-span-2">
             <label className="label">URL de imagen</label>
             <input className="input-field" value={form.image_url || ''} onChange={e => update('image_url', e.target.value)} />
           </div>
-          <div className="md:col-span-2">
+          <div>
             <label className="label">Subir imagen (opcional)</label>
             <input type="file" accept="image/png,image/jpeg,image/webp" onChange={(e) => setFile(e.target.files?.[0] || null)} className="input-field" />
-            <p className="text-xs text-gray-500 mt-1">Máx. 5MB. Se guardará y servirá desde el backend.</p>
+            <p className="text-xs text-gray-500 mt-1">Máx. 5MB</p>
           </div>
+          
+          {/* Sección de Promociones */}
+          <div className="md:col-span-3 mt-4 p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg border border-purple-200">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-semibold text-purple-900 flex items-center gap-2">
+                <span className="text-xl">🏷️</span>
+                Promoción y Descuento
+              </h3>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input 
+                  type="checkbox" 
+                  checked={form.has_promotion ?? false} 
+                  onChange={e => update('has_promotion', e.target.checked)}
+                  className="w-5 h-5 text-purple-600 rounded focus:ring-purple-500"
+                />
+                <span className="text-sm font-medium text-purple-900">Activar promoción</span>
+              </label>
+            </div>
+            
+            {form.has_promotion && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
+                <div>
+                  <label className="label text-purple-900">Descuento (%)</label>
+                  <input 
+                    type="number" 
+                    step="0.01" 
+                    min="0" 
+                    max="100"
+                    className="input-field border-purple-200 focus:border-purple-500 focus:ring-purple-500" 
+                    value={form.discount_percentage ?? 0} 
+                    onChange={e => update('discount_percentage', parseFloat(e.target.value) || 0)}
+                    placeholder="Ej: 15"
+                  />
+                  <p className="text-xs text-purple-700 mt-1">
+                    {form.discount_percentage && form.discount_percentage > 0 && form.price ? (
+                      <>💰 <strong className="text-purple-900">${(form.price * (1 - form.discount_percentage / 100)).toFixed(2)}</strong></>
+                    ) : (
+                      '0-100'
+                    )}
+                  </p>
+                </div>
+                
+                <div className="md:col-span-1 lg:col-span-3">
+                  <label className="label text-purple-900">Descripción de promoción</label>
+                  <input 
+                    className="input-field border-purple-200 focus:border-purple-500 focus:ring-purple-500" 
+                    value={form.promotion_description || ''} 
+                    onChange={e => update('promotion_description', e.target.value)}
+                    placeholder="Ej: Oferta de verano"
+                  />
+                </div>
+                
+                <div className="md:col-span-1 lg:col-span-2">
+                  <label className="label text-purple-900">Fecha de inicio</label>
+                  <input 
+                    type="date" 
+                    className="input-field border-purple-200 focus:border-purple-500 focus:ring-purple-500" 
+                    value={form.promotion_start ? form.promotion_start.slice(0, 10) : ''} 
+                    onChange={e => update('promotion_start', e.target.value || '')}
+                  />
+                </div>
+                
+                <div className="md:col-span-1 lg:col-span-2">
+                  <label className="label text-purple-900">Fecha de fin</label>
+                  <input 
+                    type="date" 
+                    className="input-field border-purple-200 focus:border-purple-500 focus:ring-purple-500" 
+                    value={form.promotion_end ? form.promotion_end.slice(0, 10) : ''} 
+                    onChange={e => update('promotion_end', e.target.value || '')}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+          
           {error && (
-            <div className="md:col-span-2 text-sm text-red-600">{error}</div>
+            <div className="md:col-span-3 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
+              ⚠️ {error}
+            </div>
           )}
-          <div className="md:col-span-2 flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose} className="btn-secondary">Cancelar</button>
-            <button type="submit" disabled={saving} className="btn-primary">{saving ? 'Guardando...' : 'Guardar'}</button>
-          </div>
         </form>
+        
+        {/* Footer con botones - sticky en la parte inferior */}
+        <div className="px-6 py-4 border-t bg-gray-50 flex justify-end gap-3 sticky bottom-0 rounded-b-xl">
+          <button type="button" onClick={onClose} className="btn-secondary">Cancelar</button>
+          <button type="submit" form="product-form" disabled={saving} className="btn-primary">
+            {saving ? 'Guardando...' : 'Guardar'}
+          </button>
+        </div>
       </div>
     </div>
   )
